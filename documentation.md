@@ -51,7 +51,7 @@ header-text: >
 
 Ядро библиотеки Selenide. Основные методы - это `open`, `$` и `$$`:
 <ul>
-  <li><a href="http://selenide.org/javadoc/{{site.SELENIDE_VERSION}}/com/codeborne/selenide/Selenide.html#open(java.lang.String)">open(URL)</a>, и</li>
+  <li><a href="http://selenide.org/javadoc/{{site.SELENIDE_VERSION}}/com/codeborne/selenide/Selenide.html#open(java.lang.String)">open(URL)</a></li>
   <li><a href="http://selenide.org/javadoc/{{site.SELENIDE_VERSION}}/com/codeborne/selenide/Selenide.html#$(java.lang.String)">$(String cssSelector)</a>   - возвращает первый SelenideElement</li>
   <li><a href="http://selenide.org/javadoc/{{site.SELENIDE_VERSION}}/com/codeborne/selenide/Selenide.html#$(org.openqa.selenium.By)">$(By)</a>   - возвращает первый SelenideElement</li>
   <li><a href="http://selenide.org/javadoc/{{site.SELENIDE_VERSION}}/com/codeborne/selenide/Selenide.html#$$(java.lang.String)">$$(String cssSelector)</a>   - возвращает список элементов</li>
@@ -75,9 +75,31 @@ header-text: >
 
 Класс SelenideElement - обёртка вокруг Selenium WebElement, которая добавляет несколько весьма полезных методов.
 
-Вы можете связать объекты SelenideElements в цепочку с помощью `$`, например `$("#page").$("#table").$("#header")`, и это не вызовет поиск по DOM.  
+Cам объект SelenideElement, который возвращает `$` - не есть реально найденным элементом на странице. Доллар не ищет реальный элемент, а создает объект "искателя элемента". Реальный же поиск в DOM страницы будет выполнен в момент, когда вы совершите с обьектом SelenideElement какое-то действие, либо проверите какое-то условие, либо попробуете получить какую то информацию о нем (text(), val()). Таким образом, один раз получив SelenideElement c помощью доллара вы можете быть уверены, что при любом действии вы будете работать с его последней актуальной версией.
 
-Assertions (проверки) вызывают поиск по DOM и возвращают объекты SelenideElement, позволяя использовать цепочки вызовов.
+Среди методов SelenideElement есть такие, которые не вызывают поиск по DOM - это методы создания "искателей других элементов внутри даного":
+
+* $(String cssSelector) | find(String cssSelector)
+* $(By) | find(By)
+* $$(String cssSelector) | findAll(String cssSelector)
+* $$(By) | findAll(By)
+
+Таким образом вы можете "связать" объекты SelenideElements в цепочку с помощью `$`, например `$("#page").$("#table").$("#header")`, и это не вызовет поиск по DOM. Соответственно вы можете сохранить "цепочку" любой длины в переменную, в независимости от того загружена ли страница на текущий момент, или даже открыт ли браузер, например:
+
+```java
+//до открытия браузера и загрузки страницы
+SelenideElement menu = $("#menu");
+SelenideElement streamMenu = menu.$(By.linkText("Stream"));
+SelenideElement profileMenu = menu.$(By.linkText("Profile"));
+//...
+open("/main");
+profileMenu.click();
+//...
+streamMenu.click();
+//...
+```
+
+Методы-проверки - assertions - вызывают поиск по DOM и возвращают объекты SelenideElement, позволяя использовать цепочки вызовов.
 
 *  should(Condition)
 *  shouldBe(Condition)
@@ -86,7 +108,16 @@ Assertions (проверки) вызывают поиск по DOM и возвр
 *  shouldNotBe(Condition)
 *  shouldNotHave(Condition)
 
-Действия над элементами:
+Проверки играют роль явных ожиданий (explicit waits) в Selenide. Они ждут до удовлетворения условия (visible, enabled, text("some text")) пока не истечет таймаут (установленный по умолчанию в `Configuration.timeout`).
+
+Можно использовать проверки явно с целью ожиданий нужного состояния у элементов перед действием, например `$("#submit").shouldBe(enabled).click();`
+
+Есть версии явных ожиданий с указанием таймаута:
+
+*  waitUntil(Condition, milliseconds)
+*  waitWhile(Condition, milliseconds)
+
+Действия над элементами 
 
 *  click()
 *  doubleClick()
@@ -97,22 +128,24 @@ Assertions (проверки) вызывают поиск по DOM и возвр
 *  val(String)
 *  append(String)
 
+имеют встроеные неявные ожидания (implicit waits) до видимости элемента, поэтому код `$("#submit").shouldBe(visible).click()` избыточен.
 
-Получение статусов и значений элементов:
+Большинство действий также возвращают обьект SelenideElement, позволяя использовать цепочки вызовов, например `$("#edit").setValue("text").pressEnter();`.
 
-*  val()
-*  data()
-*  text()
-*  isDisplayed()
-*  exists()
-*  getSelectedOption()
-*  getSelectedText()
-*  getSelectedValue()<br/>
+Методы для получения статусов и значений элементов имеют разную логику неявных ожиданий в зависимости от контекста:
+
+*  val()         // ждет до появления в DOM
+*  data()        // ждет до появления в DOM
+*  text()        // ждет до появления в DOM и возвращает "видимый текст на странице"
+*  innerText()   // ждет до появления в DOM и возвращает "текст элемента в DOM"
+*  isDisplayed() // не ждет, возвращает false если элемента нет в DOM
+*  exists()      // не ждет
+*  getSelectedOption()     // ждет до появления в DOM
+*  getSelectedText()       // ждет до появления в DOM
+*  getSelectedValue()      // ждет до появления в DOM <br/>
 
 Другие полезные команды:
 
-*  waitUntil(Condition, milliseconds)
-*  waitWhile(Condition, milliseconds)
 *  uploadFromClasspath(String fileName)
 *  download()
 *  toWebElement()
@@ -127,7 +160,7 @@ Assertions (проверки) вызывают поиск по DOM и возвр
 Условия используются в конструкциях should/waitUntil/waitWhile. Мы рекомендуем статически импортировать com.codeborne.selenide.Condition.* чтобы получить все преимущества читаемого кода.
 
 *   visible | appear   // например, $("input").shouldBe(visible)
-*   present | exist
+*   present | exist    // условия присутствия элемента в DOM 
 *   hidden | disappear | not(visible)
 *   readonly           // например, $("input").shouldBe(readonly)
 *   attribute(String)
@@ -137,7 +170,9 @@ Assertions (проверки) вызывают поиск по DOM и возвр
 *   id                 // $("#input").shouldHave(id("myForm"))
 *   empty              // $("h2").shouldBe(empty)
 *   options
-*   cssClass(String)
+*   attribute(name)    // $("#input").shouldHave(attribute("required"))
+*   attribute(name, value) // $("#list li").shouldHave(attribute("class", "active checked"))
+*   cssClass(String)       // $("#list li").shouldHave(cssClass("checked"))
 *   focused
 *   enabled
 *   disabled
@@ -189,6 +224,7 @@ $("h1").shouldHave(css("font-size", "16px"));
 // Пример использования:
 $(byText("Login")).shouldBe(visible));
 $(By.xpath("//div[text()='Login']")).shouldBe(visible); // можно использовать любой org.openqa.selenium.By.* селектор
+$(byXpath("//div[text()='Login']")).shouldBe(visible); // или его аналог
 ```
 
 Более подробная информация доступна в Wiki (скоро).
@@ -199,20 +235,35 @@ $(By.xpath("//div[text()='Login']")).shouldBe(visible); // можно испол
   <a target="_blank" href="http://selenide.org/javadoc/{{site.SELENIDE_VERSION}}/com/codeborne/selenide/ElementsCollection.html">[javadoc]</a>
 </h3>
 
-Этот класс, который возвращает метод `$$`. Содержит список веб-элементов и несколько полезных методов:
+Это класс, объект которого возвращает метод `$$`, не вызывая поиска в DOM. Представляет список веб-элементов которые будут найдены после "вызова поиска в DOM" соответствующими методами ElementsCollection:
 
-Assertions (проверки), которые вызывают поиск по DOM.
+Assertions (проверки), которые вызывают поиск по DOM, и играют роль явных ожиданий:
 
 *   <a href="http://selenide.org/javadoc/{{site.SELENIDE_VERSION}}/com/codeborne/selenide/ElementsCollection.html#shouldBe(com.codeborne.selenide.CollectionCondition)">shouldBe</a>     - e.g. `$$(".errors").shouldBe(empty)`
 *   <a href="http://selenide.org/javadoc/{{site.SELENIDE_VERSION}}/com/codeborne/selenide/ElementsCollection.html#shouldHave(com.codeborne.selenide.CollectionCondition)">shouldHave</a>     - e.g. `$$("#mytable tbody tr").shouldHave(size(2))`
 
+Методы для получения статусов и значений, вызывают поиск по DOM (встроенных неявных ожиданий не имеют)
 
-Дополнительная фильтрация, не вызывает поиск по DOM и может быть безопасно сохранена в переменную.
+*   size()
+*   isEmpty()
+*   getTexts()  // возвращает массив видимых текстов, например для элементов `<li>a</li><li hidden>b</li><li>c</li>` вернет массив вида ["a", "", "c"]
 
-*   get(int) - возвращает n-ый элемент как `SelenideElement` и *не* вызывает поиск по DOM или граничную проверку коллекции
-*   <a href="http://selenide.org/javadoc/{{site.SELENIDE_VERSION}}/com/codeborne/selenide/ElementsCollection.html#find(com.codeborne.selenide.Condition)">find</a>     - e.g. `$$("#multirowTable tr").findBy(text("Norris"))`
-*   <a href="http://selenide.org/javadoc/{{site.SELENIDE_VERSION}}/com/codeborne/selenide/ElementsCollection.html#filter(com.codeborne.selenide.Condition)">filter</a>     - e.g. `$$("#multirowTable tr").filterBy(text("Norris"))`
-*   <a href="http://selenide.org/javadoc/{{site.SELENIDE_VERSION}}/com/codeborne/selenide/ElementsCollection.html#exclude(com.codeborne.selenide.Condition)">exclude</a>     - e.g. `$$("#multirowTable tr").excludeWith(text("Chuck"))`
+Дополнительная фильтрация, *не* вызывает поиск по DOM и может быть безопасно сохранена в переменную, *не* имеет встроенных ожиданий
+*   <a href="http://selenide.org/javadoc/{{site.SELENIDE_VERSION}}/com/codeborne/selenide/ElementsCollection.html#filterBy(com.codeborne.selenide.Condition)">filterBy(Condition)</a>  возвращает коллекцию (как ElementsCollection) из только тех элементов оригинальной коллекции которые удовлетворяют условию - e.g. `$$("#multirowTable tr").filterBy(text("Norris"))`
+*   <a href="http://selenide.org/javadoc/{{site.SELENIDE_VERSION}}/com/codeborne/selenide/ElementsCollection.html#excludeWith(com.codeborne.selenide.Condition)">excludeWith(Condition)</a>     - e.g. `$$("#multirowTable tr").excludeWith(text("Chuck"))`
+
+Дополнительный поиск элементов, *не* вызывает поиск по DOM и может быть безопасно сохранен в переменную, имеет встроеные неявные ожидания
+
+*   get(int) - возвращает n-ый элемент как `SelenideElement`; при попытке действий над элементом сработает неявное ожидание до существования n-го элемента в оригинальной коллекции
+*   <a href="http://selenide.org/javadoc/{{site.SELENIDE_VERSION}}/com/codeborne/selenide/ElementsCollection.html#findBy(com.codeborne.selenide.Condition)">findBy(Condition)</a> - возвращает элемент коллекции удовлетворяющий условию как `SelenideElement`, при попытке действий над элементом сработает неявное ожидание до появления в оригинальной коллекции соответствующего элемента - e.g. `$$("#multirowTable tr").findBy(text("Norris"))`
+
+Дополнительная фильтрация и поиск позволяют почти полностью отказаться от менее читабильных xpath локаторов:
+```java
+$$("#list li").filterBy(cssClass("enabled")).findBy(exactText("foo")).find(".remove").click();
+// вместо
+$(By.xpath("//*[@id='list']//li[@class='enabled' and .//text()='foo']//*[@class='remove']")).click();
+```
+В особых случаях при большом количестве операций с большими списками элементов, xpath может быть предпочтительней из-за скорости работы.
 
 Более подробная информация доступна в Wiki (скоро).
 
@@ -228,7 +279,8 @@ Assertions (проверки), которые вызывают поиск по D
 *  isHeadless()
 *  url() - возвращает текущий url
 *  source() - возвращает исходный HTML текущего окна
-*  getWebDriver()
+*  getWebDriver() - возвращает обьект WebDriver (созданный Selenide автоматически или установленный пользователем), таким образом отдавая "чистый" интерфейс к Selenium если нужно
+*  setWebDriver(WebDriver) - указывает Selenide использовать драйвер созданный пользователем. С этого момента пользователь сам ответственен за закрытие драйвера.
 
 
 Более подробная информация доступна в Wiki (скоро).
@@ -240,8 +292,8 @@ Assertions (проверки), которые вызывают поиск по D
 
 Этот класс содержит конфигурации для запуска тестов например:
 
-*  timeout - (String) может быть изменен во время исполнения
-*  browser (напр. chrome, ie, firefox)
+*  timeout - время ожидания в милисекундах, которое используется в явных (should/waitUntil/waitWhile) и неявных ожиданиях, может быть изменено во время исполнения, e.g. `Configuration.timeout = 6000;`
+*  browser (напр. `"chrome"`, `"ie"`, `"firefox"`)
 *  baseUrl
 *  reportsFolder
 
